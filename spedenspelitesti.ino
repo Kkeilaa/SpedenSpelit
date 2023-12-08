@@ -107,8 +107,7 @@ void checkGame(int buttonPressCount) {
     } else Serial.println("Oikeaa nappia painettu, peli jatkuu.");
     timeToCheckGameStatus = false;
     byte result = buttonPressCount;
-    //showResult(result);
-    writeByte(result);
+    showResult(result);
     Serial.print(result);
   }
 }
@@ -228,6 +227,7 @@ ISR(PCINT0_vect) {
 }
 
 //Display.cpp
+
 void initializeDisplay(void) {
   pinMode(reset, OUTPUT);
   pinMode(shiftClock, OUTPUT);
@@ -239,31 +239,47 @@ void initializeDisplay(void) {
   digitalWrite(reset, HIGH);
 }
 
-void writeByte(uint8_t number) {
-  digitalWrite(reset, HIGH);
-  if (number > 9) {
-    uint8_t ykkoset = number % 10;
-    uint8_t kympit = (number - ykkoset) / 10;
-    writeHighAndLowNumber(kympit, ykkoset);
-  } else {
-    digitalWrite(latchClock, LOW);
-    shiftOut(serialInput, shiftClock, LSBFIRST, ~numerolista[number]);
-    shiftOut(serialInput, shiftClock, LSBFIRST, ~numerolista[0]);
+void writeByte(uint8_t bits,bool last)
+{
+  digitalWrite(latchClock, LOW);
+
+  uint8_t luku = ~numerolista[number];
+  for(int i=0; i < 8; i++)
+  {
+    digitalWrite(shiftClock, LOW);
+    int bitti = luku >> i;
+    if(bitti & 1 == 1){
+      digitalWrite(serialInput, HIGH);
+    }else
+      digitalWrite(serialInput, LOW);
+    
+    digitalWrite(shiftClock, HIGH);
+  }
+  if(last)
+  {
     digitalWrite(latchClock, HIGH);
   }
-  digitalWrite(reset, LOW);
 }
 
 
-void writeHighAndLowNumber(uint8_t tens, uint8_t ones) {
-  digitalWrite(latchClock, LOW);
-  shiftOut(serialInput, shiftClock, LSBFIRST, ~numerolista[ones]);
-  shiftOut(serialInput, shiftClock, LSBFIRST, ~numerolista[tens]);
-  digitalWrite(latchClock, HIGH);
+void writeHighAndLowNumber(uint8_t tens,uint8_t ones)
+{
+  writeByte(ones, false);
+  writeByte(tens, true);
 }
 
-void showResult(byte number) {
-  // See requirements for this function from display.h
+void showResult(byte number)
+{
+  if(result<10){
+    writeByte(syote, false);
+    writeByte(0, true);
+  }
+  else
+  {
+    uint8_t ykkoset = result%10;
+    uint8_t kympit = (result-ykkoset)/10;
+    writeHighAndLowNumber(kympit, ykkoset);
+  }
 }
 
 //Leds.cpp
