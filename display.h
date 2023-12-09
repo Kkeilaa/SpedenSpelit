@@ -2,7 +2,7 @@
 #define DISPLAY_H
 #include <arduino.h>
 
-extern int numerolista[10] = {1, 79, 18, 6, 76, 36, 32, 15, 0, 4};
+extern const int numerolista[10] = {1, 79, 18, 6, 76, 36, 32, 15, 0, 4};
 
 extern const int reset=6;
 extern const int shiftClock=5;
