@@ -46,10 +46,10 @@ void writeHighAndLowNumber(uint8_t tens,uint8_t ones)
   writeByte(tens, true);
 }
 
-void showResult(byte number)
+void showResult(byte result)
 {
   if(result<10){
-    writeByte(syote, false);
+    writeByte(result, false);
     writeByte(0, true);
   }
   else
