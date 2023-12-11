@@ -17,7 +17,7 @@ void initializeDisplay(void)
 }
 
 
-void writeByte(uint8_t bits,bool last)
+void writeByte(uint8_t number,bool last)
 {
   digitalWrite(latchClock, LOW);
 
