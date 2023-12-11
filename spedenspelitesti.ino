@@ -239,7 +239,7 @@ void initializeDisplay(void) {
   digitalWrite(reset, HIGH);
 }
 
-void writeByte(uint8_t bits,bool last)
+void writeByte(uint8_t number,bool last)
 {
   digitalWrite(latchClock, LOW);
 
@@ -268,10 +268,10 @@ void writeHighAndLowNumber(uint8_t tens,uint8_t ones)
   writeByte(tens, true);
 }
 
-void showResult(byte number)
+void showResult(byte result)
 {
   if(result<10){
-    writeByte(syote, false);
+    writeByte(result, false);
     writeByte(0, true);
   }
   else
