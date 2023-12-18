@@ -1,7 +1,8 @@
 
 // Määritellään globaalit muuttujat ym.
-int randomNumbers[100];
+volatile int randomNumbers[100];
 volatile int userNumbers[100];
+volatile int temp[100];
 
 volatile bool button8Falling = true;
 volatile bool button9Falling = true;
@@ -10,8 +11,7 @@ volatile bool button11Falling = true;
 volatile bool button12Falling = true;
 volatile uint8_t buttonNumber = 0;
 void initButtonsAndButtonInterrupts();
-bool gameState = false;
-int numerolista[10] = { 1, 79, 18, 6, 76, 36, 32, 15, 0, 4 };
+const int numerolista[10] = { 1, 79, 18, 6, 76, 36, 32, 15, 0, 4 };
 
 const int reset = 6;
 const int shiftClock = 5;
@@ -19,13 +19,14 @@ const int latchClock = 4;
 const int outEnable = 3;
 const int serialInput = 2;
 
-volatile bool gameOver = false;
-byte result = 0;
+bool gameOver = true;
+uint8_t result = 0;
+bool isFirstNum = true;
 
-int randomCounter = 0;
-int playedNumbers = 0;
+volatile int randomCounter = 0;
+volatile int playedNumbers = 0;
 volatile bool timeToCheckGameStatus = false;
-volatile int buttonPressCount = 0;
+volatile int buttonPressCount;
 
 void setup() {
   /*
@@ -38,51 +39,101 @@ void setup() {
   initButtonsAndButtonInterrupts();
   initializeDisplay();
   initializeLeds();
-
-  PCICR |= 0x04;   // Asetetaan 8 bittinen arvo, joka määrittää PCINT2 ryhmän aktiiviseksi
-  PCMSK2 |= 0x7C;  // Asetetaan 8 bittinen arvo, jotta pinnit 2,3,4,5 ja 6 laukaisevat keskeytyksen, kun niiden arvo muuttuu.
 }
 
 void loop() {
-
+  /*
   // Tarkistaa, että jos timeToCheck ... on tosi, suoritetaan checkGame aliohjelma.
   if (timeToCheckGameStatus) {
     checkGame(buttonPressCount);
   }
   // Tarkistaa onko määritelty aloitusnappi painettu
-  if (buttonNumber == 5 && !gameState) {
+  if (buttonNumber == 5 && gameOver) {
     Serial.println("!!Start game!!");
     startTheGame();
-  }
-}
-
-ISR(PCINT2_vect) {
-  // Nämä tarkistavat onko mitäkin nappia painettu, nostaa painettujen nappien määrää sekä suorittaa tarkistuksen aliohjelman.
-  if (!gameOver) {  // Ja tämä nimenomaan tarkistaa että onko peli päättynyt vai ei, jotta nappeja ei voi painaa pelin päätyttyä, ihan varalta.
-    userNumbers[buttonPressCount] = buttonNumber;
-    buttonPressCount++;
-    timeToCheckGameStatus = true;
-  }
+  }*/
 }
 
 
 ISR(TIMER1_COMPA_vect) {
   // Laskee pelattujen numeroiden määrän, sekä nostaa pelinopeutta 10%:lla joka kymmenes numero
-  Serial.print("timer1");
+
+  //Serial.print("timer1");
   if (playedNumbers >= 10) {
     playedNumbers = 0;
     OCR1A = OCR1A * 0.9;
-    playedNumbers++;
   }
-
+  playedNumbers++;
   // Tämä generoi satunnaisia numeroita 0-3 välillä, sekä tallettaa satunnaisen luvun alkioon josta verrata pelaajan syötettä vastaan
 
-  int randomNumber = random(0, 4);
-  randomNumbers[randomCounter] = randomNumber;
-  randomCounter++;
 
+
+  /*
+  volatile bool isFinished = false;
+  int var = random(1, 5);
+
+
+  while(!isFirstNum && !isFinished){
+
+    var = random(1, 5);
+        Serial.println(var);
+      if(var != randomNumbers[randomCounter]){
+        Serial.print("jotian");
+        
+        randomCounter++;
+        randomNumbers[randomCounter] = var;
+        isFinished = true;
+      }
+  }
+    if(isFirstNum){
+      randomNumbers[randomCounter] = var;
+      randomCounter++;
+      isFirstNum = false;
+       Serial.println(var);
+  }
+
+
+  if(randomNumbers[randomCounter] != temp){
+        Serial.println(temp);
+    }
+  */
+
+  int randomNum = (int)random(1,5);
+  if(isFirstNum == false){
+
+    if(randomNum == randomNumbers[randomCounter-1]){
+
+      switch(randomNum){
+        case 1:{
+          randomNum = 2;
+        }
+        case 2:{
+          randomNum = 1;
+        }
+        case 3:{
+          randomNum = 4;
+        }
+        case 4:{
+          randomNum = 3;
+        }
+      }
+      
+    }
+    randomNumbers[randomCounter] = randomNum;
+  }
+  else{
+    randomNumbers[randomCounter] = randomNum;
+  }
+  
+  //int randomNum = (int)random(1,5);
+  isFirstNum = false;
+/*  Serial.print("Random ");
+  checkArr(randomNumbers);
+  Serial.print("Usernumber: ");
+  checkArr(userNumbers);*/
   clearAllLeds();
-  setLed(randomNumber);
+  setLed(randomNumbers[randomCounter]);
+  randomCounter++;
 }
 
 void initializeTimer(void) {
@@ -96,41 +147,54 @@ void initializeTimer(void) {
   TCCR1B |= (1 << CS12) | (1 << CS10);  // Prescaleriksi 1024
   TIMSK1 |= (1 << OCIE1A);              // Sallii Timer1:n vertailu A - keskeytyksen
 }
+void checkArr(int arr[]) {
+  for (int i = 0; i <= 100; i++) {
+    Serial.print(arr[i]);
+    Serial.print(" ");
+  }
+  Serial.println("");
+}
 
 void checkGame(int buttonPressCount) {
   // Vertailee randomNumbers sekä userNumbers alkioita toisiinsa, mikäli löytyy ero, peli päätetään.
-  Serial.println("!!!!!!!!check game!!!!!!!");
+
   for (int i = 0; i < buttonPressCount; i++) {
+
+
     if (randomNumbers[i] != userNumbers[i]) {
-      Serial.println("Väärää nappia painettu, peli päätetään.");
+
+      gameOver = true;
       stopTheGame();
-    } else Serial.println("Oikeaa nappia painettu, peli jatkuu.");
-    timeToCheckGameStatus = false;
-    byte result = buttonPressCount;
-    showResult(result);
-    Serial.print(result);
+    }
   }
+  //Serial.print("Random ");
+  //checkArr(randomNumbers);
+  //Serial.print("Usernumber: ");
+  //checkArr(userNumbers);
+  if(!gameOver){
+      result = buttonPressCount;
+  }
+  showResult(result);
 }
 
 void initializeGame() {
   // Alustetaan tarvittavat muuttujat ym. joilla aloittaa peli.
-  gameState = true;
-  Serial.println("!! initialzieGame!!");
   initializeTimer();
-  randomSeed(analogRead(0));  // Käyttää A0 porttia luodakseen satunnaisen "Siemenen", jolla generoida satunnaisia numeroita.
+  randomSeed(analogRead(A0));  // Käyttää A0 porttia luodakseen satunnaisen "Siemenen", jolla generoida satunnaisia numeroita.
 
-  int randomCounter = 0;
-  int playerNumbers = 0;
+  randomCounter = 0;
+  playedNumbers = 0;
   bool timeToCheckGameStatus = false;
-  int buttonPressCount = 1;  // Ykkönen, jotta taulukot olisivat synkronoitu ja molemmat alkavat "ensimmäisestä" alkiosta, eikä 0 alkiosta.
-  byte result = 0;
+  buttonPressCount = 0;  // Ykkönen, jotta taulukot olisivat synkronoitu ja molemmat alkavat "ensimmäisestä" alkiosta, eikä 0 alkiosta.
+  result = 0;
   gameOver = false;
-
+  isFirstNum = true;
   //Nämä resetoi jokaisen alkion luvun nollaksi
   for (int i = 0; i < 100; i++) {
     randomNumbers[i] = 0;
     userNumbers[i] = 0;
   }
+  showResult(0);
 }
 
 void startTheGame() {
@@ -139,8 +203,13 @@ void startTheGame() {
 }
 
 void stopTheGame() {
-  TIMSK1 &= ~(1 << OCIE1A);  // Disabloi Timer1:sen käytön
+  clearAllLeds();
+  TIMSK1 &= ~(1 << OCIE1A);  // Disabloi Timer1:sen   
   gameOver = true;
+  Serial.print("R: ");
+  checkArr(randomNumbers);
+  Serial.print("U: ");
+  checkArr(userNumbers);
 }
 
 
@@ -159,71 +228,73 @@ void initButtonsAndButtonInterrupts() {
 
 
 ISR(PCINT0_vect) {
+  delayMicroseconds(1000);
   if (digitalRead(8) == LOW && button8Falling == true) {
-    Serial.println("nappi 8 alhaalla");
+    Serial.println("nappi 1 alhaalla");
     button8Falling = false;
     buttonNumber = 1;
     if (!gameOver) {  // Ja tämä nimenomaan tarkistaa että onko peli päättynyt vai ei, jotta nappeja ei voi painaa pelin päätyttyä, ihan varalta.
       userNumbers[buttonPressCount] = buttonNumber;
       buttonPressCount++;
-      timeToCheckGameStatus = true;
+      checkGame(buttonPressCount);
     }
   } else if (digitalRead(8) == HIGH && button8Falling == false) {
-    Serial.println("nappi 8 ylhäällä");
+   Serial.println("nappi 1 ylhäällä");
     button8Falling = true;
   }
   if (digitalRead(9) == LOW && button9Falling == true) {
-    Serial.println("nappi 9 alhaalla");
+   Serial.println("nappi 2 alhaalla");
     button9Falling = false;
     buttonNumber = 2;
     if (!gameOver) {  // Ja tämä nimenomaan tarkistaa että onko peli päättynyt vai ei, jotta nappeja ei voi painaa pelin päätyttyä, ihan varalta.
       userNumbers[buttonPressCount] = buttonNumber;
       buttonPressCount++;
-      timeToCheckGameStatus = true;
+      checkGame(buttonPressCount);
     }
   } else if (digitalRead(9) == HIGH && button9Falling == false) {
-    Serial.println("nappi 9 ylhäällä");
+    Serial.println("nappi 2 ylhäällä");
     button9Falling = true;
   }
   if (digitalRead(10) == LOW && button10Falling == true) {
-    Serial.println("nappi 10 alhaalla");
+   Serial.println("nappi 4 alhaalla");
     button10Falling = false;
-    buttonNumber = 3;
-    if (!gameOver) {  // Ja tämä nimenomaan tarkistaa että onko peli päättynyt vai ei, jotta nappeja ei voi painaa pelin päätyttyä, ihan varalta.
-      userNumbers[buttonPressCount] = buttonNumber;
-      buttonPressCount++;
-      timeToCheckGameStatus = true;
-    }
-  } else if (digitalRead(10) == HIGH && button10Falling == false) {
-    Serial.println("nappi 10 ylhäällä");
-    button10Falling = true;
-  }
-  if (digitalRead(11) == LOW && button11Falling == true) {
-    Serial.println("nappi 11 alhaalla");
-    button11Falling = false;
     buttonNumber = 4;
     if (!gameOver) {  // Ja tämä nimenomaan tarkistaa että onko peli päättynyt vai ei, jotta nappeja ei voi painaa pelin päätyttyä, ihan varalta.
       userNumbers[buttonPressCount] = buttonNumber;
       buttonPressCount++;
-      timeToCheckGameStatus = true;
+      checkGame(buttonPressCount);
     }
-  } else if (digitalRead(11) == HIGH && button11Falling == false) {
-    Serial.println("nappi 11 ylhäällä");
-    button11Falling = true;
+  } else if (digitalRead(10) == HIGH && button10Falling == false) {
+   Serial.println("nappi 4 ylhäällä");
+    button10Falling = true;
   }
-  if (digitalRead(12) == LOW && button12Falling == true) {
-    Serial.println("nappi 12 alhaalla");
-    button12Falling = false;
-    buttonNumber = 5;
+  if (digitalRead(11) == LOW && button11Falling == true) {
+   Serial.println("nappi 4 alhaalla");
+    button11Falling = false;
+    buttonNumber = 3;
     if (!gameOver) {  // Ja tämä nimenomaan tarkistaa että onko peli päättynyt vai ei, jotta nappeja ei voi painaa pelin päätyttyä, ihan varalta.
       userNumbers[buttonPressCount] = buttonNumber;
       buttonPressCount++;
-      timeToCheckGameStatus = true;
+      checkGame(buttonPressCount);
+     
     }
+  } else if (digitalRead(11) == HIGH && button11Falling == false) {
+  Serial.println("nappi 3 ylhäällä");
+    button11Falling = true;
+  }
+  if (digitalRead(12) == LOW && button12Falling == true) {
+   Serial.println("nappi 5 alhaalla");
+    button12Falling = false;
+    buttonNumber = 5;
+    if (gameOver){ startTheGame();
+    }else stopTheGame();
+
+
   } else if (digitalRead(12) == HIGH && button12Falling == false) {
-    Serial.println("nappi 12 ylhäällä");
+  Serial.println("nappi 5 ylhäällä");
     button12Falling = true;
   }
+
 }
 
 //Display.cpp
@@ -239,45 +310,38 @@ void initializeDisplay(void) {
   digitalWrite(reset, HIGH);
 }
 
-void writeByte(uint8_t number,bool last)
-{
+void writeByte(uint8_t number, bool last) {
   digitalWrite(latchClock, LOW);
 
   uint8_t luku = ~numerolista[number];
-  for(int i=0; i < 8; i++)
-  {
+  for (int i = 0; i < 8; i++) {
     digitalWrite(shiftClock, LOW);
     int bitti = luku >> i;
-    if(bitti & 1 == 1){
+    if (bitti & 1 == 1) {
       digitalWrite(serialInput, HIGH);
-    }else
+    } else
       digitalWrite(serialInput, LOW);
-    
+
     digitalWrite(shiftClock, HIGH);
   }
-  if(last)
-  {
+  if (last) {
     digitalWrite(latchClock, HIGH);
   }
 }
 
 
-void writeHighAndLowNumber(uint8_t tens,uint8_t ones)
-{
-  writeByte(ones, false);
-  writeByte(tens, true);
+void writeHighAndLowNumber(uint8_t tens, uint8_t ones) {
+  writeByte(tens, false);
+  writeByte(ones, true);
 }
 
-void showResult(byte result)
-{
-  if(result<10){
-    writeByte(result, false);
-    writeByte(0, true);
-  }
-  else
-  {
-    uint8_t ykkoset = result%10;
-    uint8_t kympit = (result-ykkoset)/10;
+void showResult(byte result) {
+  if (result < 10) {
+    writeByte(0, false);
+    writeByte(result, true);
+  } else {
+    uint8_t ykkoset = result % 10;
+    uint8_t kympit = (result - ykkoset) / 10;
     writeHighAndLowNumber(kympit, ykkoset);
   }
 }
@@ -293,14 +357,16 @@ void initializeLeds() {
 }
 
 void setLed(byte ledNumber) {
+  //Serial.println(ledNumber);
+  //Serial.print(randomNumbers[randomCounter]);
   // see requirements for this function from leds.h
-  if (ledNumber == 0) {
+  if (ledNumber == 1) {
     digitalWrite(A2, HIGH);
-  } else if (ledNumber == 1) {
-    digitalWrite(A3, HIGH);
   } else if (ledNumber == 2) {
-    digitalWrite(A4, HIGH);
+    digitalWrite(A3, HIGH);
   } else if (ledNumber == 3) {
+    digitalWrite(A4, HIGH);
+  } else if (ledNumber == 4) {
     digitalWrite(A5, HIGH);
   }
 }
